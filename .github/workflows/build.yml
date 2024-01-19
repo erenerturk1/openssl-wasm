@@ -1,0 +1,47 @@
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        id: checkout
+        uses: actions/checkout@v3
+      - name: Setup zig
+        id: zig
+        uses: goto-bus-stop/setup-zig@v2
+      - name: Setup perl
+        id: perl
+        uses: shogo82148/actions-setup-perl@v1
+        with:
+          perl-version: "latest"
+      - name: Patch openssl
+        id: patch
+        run: bash patch.sh
+      - name: Build openssl
+        id: build
+        run: bash build.sh
+  deploy:
+    needs: build
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fix permissions
+        id: fixperms
+        run: |
+          chmod -c -R +rX "precompiled/" | while read line; do
+            echo "::warning title=Invalid file permissions automatically fixed::$line"
+          done
+      - name: Upload Pages artifact
+        id: upload
+        uses: actions/upload-pages-artifact@v2
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4 
